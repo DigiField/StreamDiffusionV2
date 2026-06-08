@@ -17,10 +17,12 @@ class CausalStreamInferencePipeline(torch.nn.Module):
         model_type = args.model_type
         self.device = device
         # Step 1: Initialize all models
+        LOGGER.debug("loading geneartor")
         self.generator_model_name = getattr(
             args, "generator_name", args.model_name)
         self.generator = get_diffusion_wrapper(
             model_name=self.generator_model_name)(model_type=model_type)
+        LOGGER.debug("loading text_encoder")
         self.text_encoder = get_text_encoder_wrapper(
             model_name=args.model_name)(model_type=model_type)
         if getattr(args, "use_taehv", False):
@@ -34,6 +36,7 @@ class CausalStreamInferencePipeline(torch.nn.Module):
             self.vae = get_vae_wrapper(model_name=args.model_name)(model_type=model_type)
 
         # Step 2: Initialize all causal hyperparmeters
+        LOGGER.debug("step 2")
         self._init_denoising_step_list(args, device)
 
         if model_type == "T2V-1.3B":
@@ -67,6 +70,7 @@ class CausalStreamInferencePipeline(torch.nn.Module):
         if self.num_frame_per_block > 1:
             self.generator.model.num_frame_per_block = self.num_frame_per_block
 
+        LOGGER.debug("moving!")
         self.generator.model.to(self.device)
 
     def _init_denoising_step_list(self, args, device):

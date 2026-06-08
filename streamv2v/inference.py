@@ -89,6 +89,7 @@ class SingleGPUInferencePipeline:
         
         # Initialize pipeline
         self.pipeline = CausalStreamInferencePipeline(config, device=str(device))
+        #print(self.pipeline)
         self.pipeline.to(device=str(device), dtype=torch.bfloat16)
         
         # Performance tracking
