@@ -22,9 +22,16 @@ class CausalStreamInferencePipeline(torch.nn.Module):
             args, "generator_name", args.model_name)
         self.generator = get_diffusion_wrapper(
             model_name=self.generator_model_name)(model_type=model_type)
+        # Store the text encoder outside of nn.Module's submodule registry by
+        # bypassing __setattr__.
+        # This way, it becomes invisible to .to()/.cuda() (and therefore won't be
+        # moved to the GPU) while still being accessible as self.text_encoder.
         LOGGER.debug("loading text_encoder")
-        self.text_encoder = get_text_encoder_wrapper(
-            model_name=args.model_name)(model_type=model_type)
+        object.__setattr__(
+            self,
+            'text_encoder',
+            get_text_encoder_wrapper(model_name=args.model_name)(model_type=model_type)
+        )
         if getattr(args, "use_taehv", False):
             LOGGER.info("Using TAEHV VAE wrapper for Wan inference")
             self.vae = TAEHVWanVAEWrapper(
@@ -140,13 +147,14 @@ class CausalStreamInferencePipeline(torch.nn.Module):
         self.device = device
         batch_size = noise.shape[0]
 
+        # Move T5 to GPU only for the duration of encoding, then immediately
+        # return it to CPU. It's ~9.4GB in bfloat16 so it can't coexist on GPU
+        # with the DiT on an 8GB card. The output embeddings (conditional_dict)
+        # are small and stay on GPU for the rest of the session.
+        self.text_encoder.to(device)
         self.conditional_dict = self.text_encoder(
             text_prompts=text_prompts
         )
-
-        # Text encoder is only needed once to produce the prompt embeddings.
-        # Move it back to CPU now so it doesn't occupy VRAM for the entire session.
-        # UMT5-XXL is ~9.4GB in bfloat16 — keeping it on GPU would OOM on 8GB cards.
         self.text_encoder.to('cpu')
         torch.cuda.empty_cache()
 
