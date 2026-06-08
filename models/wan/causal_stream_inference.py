@@ -140,6 +140,12 @@ class CausalStreamInferencePipeline(torch.nn.Module):
             text_prompts=text_prompts
         )
 
+        # Text encoder is only needed once to produce the prompt embeddings.
+        # Move it back to CPU now so it doesn't occupy VRAM for the entire session.
+        # UMT5-XXL is ~9.4GB in bfloat16 — keeping it on GPU would OOM on 8GB cards.
+        self.text_encoder.to('cpu')
+        torch.cuda.empty_cache()
+
         # Step 1: Initialize KV cache
         if self.kv_cache1 is None:
             self._initialize_kv_cache(

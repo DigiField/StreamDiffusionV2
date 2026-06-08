@@ -119,6 +119,13 @@ class SingleGPUInferencePipeline:
             # Try non-strict load as a fallback and report
             self.logger.warning(f"Strict load_state_dict failed: {e}; retrying with strict=False")
             self.pipeline.generator.load_state_dict(state_dict, strict=False)
+
+        # Explicitly free the state dict before the GPU move.
+        # Without this Python may not GC it until after .to(device) runs,
+        # briefly leaving CPU weights + GPU weights both alive in RAM.
+        import gc
+        del state_dict
+        gc.collect()
     
     def prepare_pipeline(self, text_prompts: list, noise: torch.Tensor, current_start: int, current_end: int):
         """Prepare the pipeline for inference."""

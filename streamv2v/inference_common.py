@@ -91,22 +91,38 @@ def merge_cli_config(config_path: str, args) -> OmegaConf:
 
 
 def load_generator_state_dict(checkpoint_folder: str):
-    """Load the generator weights from a checkpoint folder."""
-    ckpt_path = os.path.join(checkpoint_folder, "model.pt")
-    checkpoint = torch.load(ckpt_path, map_location="cpu")
+    """Load the generator weights from a checkpoint folder.
 
-    def add_model_prefix(state_dict):
-        return {
-            key if key.startswith("model.") else f"model.{key}": value
-            for key, value in state_dict.items()
-        }
+    Uses mmap so the file is paged in on demand rather than copied into RAM
+    all at once.  Key remapping is done in-place to avoid a second full copy
+    of the tensors.
+    """
+    ckpt_path = os.path.join(checkpoint_folder, "model.pt")
+
+    # mmap=True keeps tensors as memory-mapped views of the file — no RAM copy
+    # until the tensor is actually read.  weights_only=True disables arbitrary
+    # pickle execution (also required for mmap on PyTorch >= 2.1).
+    try:
+        checkpoint = torch.load(ckpt_path, map_location="cpu", mmap=True, weights_only=True)
+    except TypeError:
+        # Older PyTorch without mmap support — fall back gracefully
+        checkpoint = torch.load(ckpt_path, map_location="cpu")
+
+    def add_model_prefix_inplace(state_dict: dict) -> dict:
+        """Remap keys in-place so we don't allocate a second copy of all tensors."""
+        keys_to_rename = [k for k in state_dict if not k.startswith("model.")]
+        for key in keys_to_rename:
+            state_dict[f"model.{key}"] = state_dict.pop(key)
+        return state_dict
 
     if isinstance(checkpoint, dict):
         for key in ("generator", "generator_ema", "state_dict"):
             if key in checkpoint:
-                return ckpt_path, add_model_prefix(checkpoint[key])
+                raw = checkpoint.pop(key)   # drop the top-level reference
+                del checkpoint              # release any other keys (e.g. optimizer state)
+                return ckpt_path, add_model_prefix_inplace(raw)
 
-    return ckpt_path, add_model_prefix(checkpoint)
+    return ckpt_path, add_model_prefix_inplace(checkpoint)
 
 
 def _get_flag(config: Any, key: str, default=False):

@@ -43,7 +43,7 @@ class WanTextEncoder(TextEncoderInterface):
         self.text_encoder = umt5_xxl(
             encoder_only=True,
             return_tokenizer=False,
-            dtype=torch.float32,
+            dtype=torch.bfloat16,  # was float32 (~19GB) — bf16 halves this to ~9.4GB
             device=torch.device('cpu')
         ).eval().requires_grad_(False)
         self.text_encoder.load_state_dict(
