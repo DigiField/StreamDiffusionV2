@@ -89,7 +89,6 @@ class SingleGPUInferencePipeline:
         
         # Initialize pipeline
         self.pipeline = CausalStreamInferencePipeline(config, device=str(device))
-        #print(self.pipeline)
         self.pipeline.to(device=str(device), dtype=torch.bfloat16)
         
         # Performance tracking
@@ -446,6 +445,7 @@ def main():
     parser.add_argument("--checkpoint_folder", type=str, required=True, help="Checkpoint folder path")
     parser.add_argument("--output_folder", type=str, required=True, help="Output folder path")
     parser.add_argument("--prompt_file_path", type=str, required=True, help="Prompt file path")
+    parser.add_argument("--prompt_cache_dir", type=str, default=None, help="Encoded prompt folder path (optional, speeds up inference when repeating prompts)")
     parser.add_argument("--video_path", type=str, required=False, default=None, help="Input video path")
     parser.add_argument("--noise_scale", type=float, default=0.8, help="Noise scale")
     parser.add_argument("--height", type=int, default=480, help="Video height")

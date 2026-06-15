@@ -8,6 +8,9 @@ from typing import List
 import torch
 import torch.distributed as dist
 import logging
+import hashlib
+import os
+import json
 from ..util import get_free_ram
 
 LOGGER = logging.getLogger(__name__)
@@ -63,6 +66,7 @@ class CausalStreamInferencePipeline(torch.nn.Module):
         self.kv_cache_length = self.frame_seq_length*self.num_kv_cache
         self.num_sink_tokens = args.num_sink_tokens
         self.adapt_sink_threshold = args.adapt_sink_threshold
+        self.prompt_cache_dir = args.prompt_cache_dir
 
         self.conditional_dict = None
         self.kv_cache1 = None
@@ -132,6 +136,26 @@ class CausalStreamInferencePipeline(torch.nn.Module):
             })
 
         self.crossattn_cache = crossattn_cache  # always store the clean cache
+
+    def get_cache_filename(
+        self,
+        text_prompts: List[str]
+    ) -> str:
+        # join the prompts and hash the result
+        prompts = "".join(text_prompts)
+        m = hashlib.sha256()
+        m.update(prompts.encode("utf-8"))
+        name = m.hexdigest()
+        
+        return name + ".pt"
+
+    def get_cache_filepath(
+        self,
+        text_prompts: List[str]
+    ) -> str:
+        if not self.prompt_cache_dir:
+            return None
+        return os.path.join(self.prompt_cache_dir, self.get_cache_filename(text_prompts))
     
     def prepare(
         self,
@@ -148,23 +172,36 @@ class CausalStreamInferencePipeline(torch.nn.Module):
         self.device = device
         batch_size = noise.shape[0]
 
-        # Check if there is enough free VRAM to move the encoder to GPU.
-        # T5 is ~9.4GB in bfloat16 so it can't fit on e.g. an 8GB card.
-        # TODO use a better approach for when T5 can fit;
-        # the constant RAM <-> VRAM transfers might result in a bottleneck.
-        move_t5_to_gpu = (device.type == "cuda") and (get_free_ram(device) >= 9400000000)
-        if not move_t5_to_gpu:
-            print("Will not move T5 to GPU (not enough VRAM)")
+        # Check if the requested prompts are in the prompt cache directory
+        cached_encoding = self.get_cache_filepath(text_prompts)
+        if cached_encoding and os.path.exists(cached_encoding):
+            # If yes, load the encoding
+            print("loading saved prompt: " + cached_encoding)
+            with open(cached_encoding, "r") as f:
+                self.conditional_dict = torch.load(cached_encoding, map_location=device)
         else:
-            self.text_encoder.to(device)
-        
-        # Encode the prompt.
-        self.conditional_dict = self.text_encoder(text_prompts=text_prompts)
+            # Check if there is enough free VRAM to move the encoder to GPU.
+            # T5 is ~9.4GB in bfloat16 so it can't fit on e.g. an 8GB card.
+            # TODO use a better approach for when T5 can fit;
+            # the constant RAM <-> VRAM transfers might result in a bottleneck.
+            move_t5_to_gpu = (device.type == "cuda") and (get_free_ram(device) >= 9400000000)
+            if not move_t5_to_gpu:
+                print("Will not move T5 to GPU (not enough VRAM)")
+            else:
+                self.text_encoder.to(device)
+            
+            # Encode the prompt and load the result to the GPU
+            result = self.text_encoder(text_prompts=text_prompts)
+            self.conditional_dict = {k: v.to(device) if isinstance(v, torch.Tensor) else v for k, v in result.items()}  
 
-        # If T5 was offloaded to the GPU, move it back to the CPU
-        if move_t5_to_gpu:
-            self.text_encoder.to('cpu')
-        torch.cuda.empty_cache()
+            # If a cache path was given, save the encoding
+            if cached_encoding:
+                torch.save(self.conditional_dict, cached_encoding)
+
+            # If T5 was offloaded to the GPU, move it back to the CPU
+            if move_t5_to_gpu:
+                self.text_encoder.to('cpu')
+                torch.cuda.empty_cache()
 
         # Step 1: Initialize KV cache
         if self.kv_cache1 is None:
