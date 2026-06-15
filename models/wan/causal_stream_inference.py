@@ -8,6 +8,7 @@ from typing import List
 import torch
 import torch.distributed as dist
 import logging
+from ..util import get_free_ram
 
 LOGGER = logging.getLogger(__name__)
 
@@ -147,15 +148,26 @@ class CausalStreamInferencePipeline(torch.nn.Module):
         self.device = device
         batch_size = noise.shape[0]
 
-        # Move T5 to GPU only for the duration of encoding, then immediately
-        # return it to CPU. It's ~9.4GB in bfloat16 so it can't coexist on GPU
-        # with the DiT on an 8GB card. The output embeddings (conditional_dict)
-        # are small and stay on GPU for the rest of the session.
-        self.text_encoder.to(device)
-        self.conditional_dict = self.text_encoder(
-            text_prompts=text_prompts
-        )
-        self.text_encoder.to('cpu')
+        # Check if there is enough free VRAM to move the encoder to GPU.
+        # T5 is ~9.4GB in bfloat16 so it can't fit on e.g. an 8GB card.
+        # TODO use a better approach for when T5 can fit;
+        # the constant RAM <-> VRAM transfers might result in a bottleneck.
+        offload_t5 = (device.type == "cuda") and (get_free_ram(device) < 9400000000)
+        if offload_t5:
+            print("Will not move T5 to GPU (not enough VRAM)")
+        else:
+            self.text_encoder.to(device)
+        
+        # Encode the prompt.
+        self.conditional_dict = self.text_encoder(text_prompts=text_prompts)
+
+        # The output embeddings (conditional_dict) are small and stay on GPU for the rest of the session.
+        if offload_t5:
+            print("Moving result to GPU")
+            self.conditional_dict.to(device)
+        else:
+            # It has been decided to offload T5 to the GPU - move it back to the CPU
+            self.text_encoder.to('cpu')
         torch.cuda.empty_cache()
 
         # Step 1: Initialize KV cache

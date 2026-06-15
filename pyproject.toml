@@ -37,6 +37,7 @@ dependencies = [
   "omegaconf==2.3.0",
   "Pillow==10.1.0",
   "pydantic==2.10.6",
+  "psutil==7.2.2",
   "regex==2024.11.6",
   "scikit-image==0.25.2",
   "sentencepiece==0.2.0",
