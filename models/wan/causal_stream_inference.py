@@ -161,12 +161,8 @@ class CausalStreamInferencePipeline(torch.nn.Module):
         # Encode the prompt.
         self.conditional_dict = self.text_encoder(text_prompts=text_prompts)
 
-        # The output embeddings (conditional_dict) are small and stay on GPU for the rest of the session.
-        if offload_t5:
-            print("Moving result to GPU")
-            self.conditional_dict.to(device)
-        else:
-            # It has been decided to offload T5 to the GPU - move it back to the CPU
+        # If T5 was not offloaded to the CPU, move it back to the CPU
+        if not offload_t5:
             self.text_encoder.to('cpu')
         torch.cuda.empty_cache()
 
