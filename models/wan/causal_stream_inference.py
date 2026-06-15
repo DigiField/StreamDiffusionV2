@@ -145,7 +145,7 @@ class CausalStreamInferencePipeline(torch.nn.Module):
         prompts = "".join(text_prompts)
         m = hashlib.sha256()
         m.update(prompts.encode("utf-8"))
-        name = m.hexdigest()
+        name = m.hexdigest()[:8]
         
         return name + ".pt"
 
