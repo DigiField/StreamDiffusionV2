@@ -152,8 +152,8 @@ class CausalStreamInferencePipeline(torch.nn.Module):
         # T5 is ~9.4GB in bfloat16 so it can't fit on e.g. an 8GB card.
         # TODO use a better approach for when T5 can fit;
         # the constant RAM <-> VRAM transfers might result in a bottleneck.
-        offload_t5 = (device.type == "cuda") and (get_free_ram(device) < 9400000000)
-        if offload_t5:
+        move_t5_to_gpu = (device.type == "cuda") and (get_free_ram(device) >= 9400000000)
+        if not move_t5_to_gpu:
             print("Will not move T5 to GPU (not enough VRAM)")
         else:
             self.text_encoder.to(device)
@@ -161,8 +161,8 @@ class CausalStreamInferencePipeline(torch.nn.Module):
         # Encode the prompt.
         self.conditional_dict = self.text_encoder(text_prompts=text_prompts)
 
-        # If T5 was not offloaded to the CPU, move it back to the CPU
-        if not offload_t5:
+        # If T5 was offloaded to the GPU, move it back to the CPU
+        if move_t5_to_gpu:
             self.text_encoder.to('cpu')
         torch.cuda.empty_cache()
 
