@@ -114,6 +114,7 @@ class StreamDiffusionV2Pipeline:
         mode: SingleMode = "single",
         config_path: str | None = None,
         prompt_cache_dir: str | None = None,
+        load_encoder: bool = True,
         device: str | torch.device | None = None,
         noise_scale: float = 0.8,
         height: int = 480,
@@ -174,7 +175,8 @@ class StreamDiffusionV2Pipeline:
             "target_fps": None,
             "fixed_noise_scale": False,
             "num_frames": 81,
-            "prompt_cache_dir": prompt_cache_dir
+            "prompt_cache_dir": prompt_cache_dir,
+            "load_encoder": load_encoder
         }
         self.config = merge_cli_config(resolved_config_path, config_args)
 

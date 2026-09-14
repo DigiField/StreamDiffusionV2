@@ -26,16 +26,24 @@ class CausalStreamInferencePipeline(torch.nn.Module):
             args, "generator_name", args.model_name)
         self.generator = get_diffusion_wrapper(
             model_name=self.generator_model_name)(model_type=model_type)
-        # Store the text encoder outside of nn.Module's submodule registry by
-        # bypassing __setattr__.
-        # This way, it becomes invisible to .to()/.cuda() (and therefore won't be
-        # moved to the GPU) while still being accessible as self.text_encoder.
-        LOGGER.debug("loading text_encoder")
-        object.__setattr__(
-            self,
-            'text_encoder',
-            get_text_encoder_wrapper(model_name=args.model_name)(model_type=model_type)
-        )
+    
+        if getattr(args, "load_encoder", True):
+            # Store the text encoder outside of nn.Module's submodule registry by
+            # bypassing __setattr__.
+            # This way, it becomes invisible to .to()/.cuda() (and therefore won't be
+            # moved to the GPU) while still being accessible as self.text_encoder.
+            LOGGER.debug("loading text_encoder")
+            object.__setattr__(
+                self,
+                'text_encoder',
+                get_text_encoder_wrapper(model_name=args.model_name)(model_type=model_type)
+            )
+        else:
+            LOGGER.warning("Not loading text encoder!")
+            LOGGER.warning("While this can help prevent crashing on systems with extreme resource limits, generation will only work")
+            LOGGER.warning("for prompts that have already been cached.")
+            LOGGER.warning("It is strongly recommended to set load_encoder=True unless this machine has extremely limited resources.")
+            self.text_encoder = None
         if getattr(args, "use_taehv", False):
             LOGGER.info("Using TAEHV VAE wrapper for Wan inference")
             self.vae = TAEHVWanVAEWrapper(
@@ -66,7 +74,7 @@ class CausalStreamInferencePipeline(torch.nn.Module):
         self.kv_cache_length = self.frame_seq_length*self.num_kv_cache
         self.num_sink_tokens = args.num_sink_tokens
         self.adapt_sink_threshold = args.adapt_sink_threshold
-        self.prompt_cache_dir = args.prompt_cache_dir
+        self.prompt_cache_dir: str = args.prompt_cache_dir
 
         self.conditional_dict = None
         self.kv_cache1 = None
@@ -179,6 +187,12 @@ class CausalStreamInferencePipeline(torch.nn.Module):
             print("loading saved prompt: " + cached_encoding)
             with open(cached_encoding, "r") as f:
                 self.conditional_dict = torch.load(cached_encoding, map_location=device)
+        elif not self.text_encoder:
+            raise ValueError(
+                "Generation cannot be performed; prompt encoder has not been loaded and the current prompts have not been cached.\n" + 
+                "To resolve this, either set load_encoder to True or encode these prompts and save the result (" + os.path.basename(cached_encoding) + ")" +
+                "to the prompt cache folder (" + (self.prompt_cache_dir if self.prompt_cache_dir else "unknown") + ")."
+            )
         else:
             # Check if there is enough free VRAM to move the encoder to GPU.
             # T5 is ~9.4GB in bfloat16 so it can't fit on e.g. an 8GB card.
