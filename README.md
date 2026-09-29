@@ -1,8 +1,8 @@
 # StreamDiffusionV2: A Streaming System for Dynamic and Interactive Video Generation (MLSys 2026 Best Paper)
 
-[Tianrui Feng](https://jerryfeng2003.github.io/)<sup>1</sup>, [Zhi Li](https://scholar.google.com/citations?user=C6kPjgwAAAAJ&hl)<sup>2</sup>, [Shuo Yang](https://andy-yang-1.github.io/)<sup>2</sup>, [Haocheng Xi](https://haochengxi.github.io/)<sup>2</sup>, [Muyang Li](https://lmxyy.me/)<sup>3</sup>, [Xiuyu Li](https://xiuyuli.com/)<sup>1</sup>, [Lvmin Zhang](https://lllyasviel.github.io/lvmin_zhang/)<sup>4</sup>, [Keting Yang](https://www.linkedin.com/in/kellyzpeng/)<sup>5</sup>, [Kelly Peng](https://www.linkedin.com/in/kellyzpeng/)<sup>6</sup>, [Song Han](https://hanlab.mit.edu/songhan)<sup>7</sup>, [Maneesh Agrawala](https://graphics.stanford.edu/~maneesh/)<sup>4</sup>, [Kurt Keutzer](https://people.eecs.berkeley.edu/~keutzer/)<sup>2</sup>, [Akio Kodaira](https://scholar.google.com/citations?hl=ja&user=15X3cioAAAAJ)<sup>8</sup>, [Chenfeng Xu](https://www.chenfengx.com/)<sup>†,1</sup>
+[Tianrui Feng](https://jerryfeng2003.github.io/)<sup>1</sup>, [Zhi Li](https://scholar.google.com/citations?user=C6kPjgwAAAAJ&hl)<sup>2</sup>, [Shuo Yang](https://andy-yang-1.github.io/)<sup>2</sup>, [Haocheng Xi](https://haochengxi.github.io/)<sup>2</sup>, [Muyang Li](https://lmxyy.me/)<sup>3</sup>, [Xiuyu Li](https://xiuyuli.com/)<sup>2</sup>, [Lvmin Zhang](https://lllyasviel.github.io/lvmin_zhang/)<sup>4</sup>, [Keting Yang](https://www.linkedin.com/in/kellyzpeng/)<sup>5</sup>, [Kelly Peng](https://www.linkedin.com/in/kellyzpeng/)<sup>6</sup>, [Song Han](https://hanlab.mit.edu/songhan)<sup>7</sup>, [Maneesh Agrawala](https://graphics.stanford.edu/~maneesh/)<sup>4</sup>, [Kurt Keutzer](https://people.eecs.berkeley.edu/~keutzer/)<sup>2</sup>, [Akio Kodaira](https://scholar.google.com/citations?hl=ja&user=15X3cioAAAAJ)<sup>8</sup>, [Chenfeng Xu](https://www.chenfengx.com/)<sup>†,1</sup>
 
-<sup>1</sup>UT Austin, <sup>2</sup>UC Berkeley, <sup>3</sup>Nunchaku AI, <sup>4</sup>Stanford University, <sup>5</sup>Independent Researcher, <sup>6</sup>First Intelligence, <sup>7</sup>MIT, <sup>8</sup>Shizhuku AI
+<sup>1</sup>UT Austin, <sup>2</sup>UC Berkeley, <sup>3</sup>Nunchaku AI, <sup>4</sup>Stanford University, <sup>5</sup>Independent Researcher, <sup>6</sup>First Intelligence, <sup>7</sup>MIT, <sup>8</sup>Shizuku AI
 
 <sup>†</sup> Project lead, corresponding to [xuchenfeng@utexas.edu](mailto:xuchenfeng@utexas.edu)
 
@@ -294,12 +294,15 @@ A minimal web demo is available under `demo/`. For setup and startup, please ref
 - Access in a browser after startup: `http://0.0.0.0:7860` or `http://localhost:7860`
 - To enable the TAEHV decoder in the web demo, start it with `USE_TAEHV=1`.
 
+## Training
+
+Our training code is based on [CausVid](https://github.com/tianweiy/CausVid) and is available on the [`user-study`](https://github.com/chenfengxu714/StreamDiffusionV2/tree/user-study) branch. See its [Training section](https://github.com/chenfengxu714/StreamDiffusionV2/tree/user-study#training) for usage.
 
 ## To-do List
 
 - [x] Demo and inference pipeline.
 - [ ] Dynamic scheduler for various workload.
-- [ ] Training code.
+- [x] Training code (see [Training](#training)).
 - [ ] FP8 support.
 - [ ] TensorRT support.
 
@@ -314,10 +317,12 @@ We also especially thank DayDream team for the great collaboration and incorpora
 
 If you find this repository useful in your research, please consider giving a star ⭐ or a citation.
 ```BibTeX
-@article{feng2025streamdiffusionv2,
+@article{streamdiffusionv2,
   title={StreamDiffusionV2: A Streaming System for Dynamic and Interactive Video Generation},
-  author={Feng, Tianrui and Li, Zhi and Yang, Shuo and Xi, Haocheng and Li, Muyang and Li, Xiuyu and Zhang, Lvmin and Yang, Keting and Peng, Kelly and Han, Song and others},
-  journal={arXiv preprint arXiv:2511.07399},
-  year={2025}
+  author={Feng, Tianrui and Li, Zhi and Yang, Shuo and Xi, Haocheng and Li, Muyang and Li, Xiuyu and Zhang, Lvmin and Yang, Keting and Peng, Kelly and Han, Song and Agrawala, Maneesh and Keutzer, Kurt and Kodaira, Akio and Xu, Chenfeng},
+  journal={Proceedings of Machine Learning and Systems},
+  volume={8},
+  pages={1656--1669},
+  year={2026}
 }
 ```
